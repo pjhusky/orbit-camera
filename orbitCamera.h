@@ -37,6 +37,8 @@ struct OrbitCamera {
     void setOrbitDist( const float orbitDist ) {}
     void setOrbitPivotWS( const rowVec3_t& orbitPivotWS );
 
+    void addPanDelta( const rowVec3_t& delta );
+
     void setControlConfig( const ControlConfig controlConfig ) { mControlConfig = controlConfig; }
 
     void setMouseSensitivity( const float mouseSensitivity ) { mMouseSensitivity = mouseSensitivity; }
@@ -47,11 +49,16 @@ struct OrbitCamera {
 private:
 
     rowMajorMat3x4_t mViewMat;
+    rowMajorMat3x4_t mViewOrbitRotMat;
+    rowMajorMat3x4_t mViewPivotOffsetMat;
+
     //rowVec3_t mPosWS;
     float       mOrbitDist;
     rowVec3_t   mOrbitPivotWS;
     rowVec3_t   mTargetOrbitPivotWS;
-    
+
+    rowVec3_t   mPanVector;
+
     ControlConfig mControlConfig;
     
     float mCurrMouseX;

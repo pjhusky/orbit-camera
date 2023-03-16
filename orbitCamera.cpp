@@ -71,6 +71,7 @@ OrbitCamera::OrbitCamera()
     , mIsActive( true ) {
 
     resetTrafos();
+    //mPanVector = { 0.0f, 0.0f, 0.0f };
 
     setControlConfig( ControlConfig{ .invertY=1u } );
 
@@ -116,14 +117,15 @@ OrbitCamera::Status_t OrbitCamera::update(
     }
 
     float damping = 0.7f;
-    mOrbitPivotWS = mOrbitPivotWS * damping + mTargetOrbitPivotWS * ( 1.0f - damping );
+    //mOrbitPivotWS = mOrbitPivotWS * damping + mTargetOrbitPivotWS * ( 1.0f - damping );
+    mOrbitPivotWS = { 0.0f, 0.0f, 0.0f };
 
     mOrbitDist += translationDelta[2];
 
 
-    rowVec3_t *const xAxis = reinterpret_cast< rowVec3_t *const >( &mViewMat[0] );
-    rowVec3_t *const yAxis = reinterpret_cast< rowVec3_t *const >( &mViewMat[1] );
-    rowVec3_t *const zAxis = reinterpret_cast< rowVec3_t *const >( &mViewMat[2] );
+    rowVec3_t *const xAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[0] );
+    rowVec3_t *const yAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[1] );
+    rowVec3_t *const zAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[2] );
 
     auto camPosWS = mOrbitPivotWS + *zAxis * mOrbitDist;
     auto startCamPosWS = camPosWS;
@@ -186,10 +188,33 @@ OrbitCamera::Status_t OrbitCamera::update(
 
     camPosWS = mOrbitPivotWS + *zAxis * mOrbitDist;
 
-    mViewMat[0][3] = -dot( *xAxis, camPosWS ); 
-    mViewMat[1][3] = -dot( *yAxis, camPosWS );
-    mViewMat[2][3] = -dot( *zAxis, camPosWS );
+    mViewOrbitRotMat[0][3] = -dot( *xAxis, camPosWS ); 
+    mViewOrbitRotMat[1][3] = -dot( *yAxis, camPosWS );
+    mViewOrbitRotMat[2][3] = -dot( *zAxis, camPosWS );
+    //mViewOrbitRotMat[0][3] = 0.0f; 
+    //mViewOrbitRotMat[1][3] = 0.0f;
+    //mViewOrbitRotMat[2][3] = 0.0f;
+
+    linAlg::loadTranslationMatrix( mViewPivotOffsetMat, mTargetOrbitPivotWS * -1.0f );
+    mViewMat = mViewOrbitRotMat * mViewPivotOffsetMat;
     
+    linAlg::loadTranslationMatrix( mViewPivotOffsetMat, mTargetOrbitPivotWS ); // jumps, but has the offset
+    //linAlg::loadTranslationMatrix( mViewPivotOffsetMat, { dot( *xAxis, mTargetOrbitPivotWS ), dot( *yAxis, mTargetOrbitPivotWS ), dot( *zAxis, mTargetOrbitPivotWS ) } ); // removes pivot offset
+    mViewMat = mViewPivotOffsetMat * mViewMat;
+
+    //linAlg::loadTranslationMatrix( mViewPivotOffsetMat, { -dot( *xAxis, camPosWS ), -dot( *yAxis, camPosWS ), -dot( *zAxis, camPosWS ) } ); // removes pivot offset
+    //mViewMat = mViewPivotOffsetMat * mViewMat;
+
+    //mViewMat[0][3] = -dot( *xAxis, camPosWS ); 
+    //mViewMat[1][3] = -dot( *yAxis, camPosWS );
+    //mViewMat[2][3] = -dot( *zAxis, camPosWS );
+
+    linAlg::mat3x4_t pivotOffsetCompensationMatrix;
+    linAlg::loadTranslationMatrix( pivotOffsetCompensationMatrix, mPanVector );
+
+    mViewMat = pivotOffsetCompensationMatrix * mViewMat;
+
+
     mPrevMouseX = mCurrMouseX;
     mPrevMouseY = mCurrMouseY;
 
@@ -207,37 +232,55 @@ void OrbitCamera::setViewMatrix( const rowMajorMat3x4_t& viewMatrix ) {
     linAlg::inverse( invViewMat4, viewMat4 );
     rowVec3_t camPosWS = {invViewMat4[0][3], invViewMat4[1][3], invViewMat4[2][3] };
 
+    // remove translational part
+    //mViewOrbitRotMat[0][3] = 0.0f;
+    //mViewOrbitRotMat[1][3] = 0.0f;
+    //mViewOrbitRotMat[2][3] = 0.0f;
+    mViewOrbitRotMat = mViewMat;
+
+
+    //linAlg::loadTranslationMatrix( mViewPivotOffsetMat, camPosWS * -1.0f );
+    mTargetOrbitPivotWS = { 0.0f, 0.0f, 0.0f };
+
     auto diffVec = mOrbitPivotWS - camPosWS;
     mOrbitDist = sqrtf( dot( diffVec, diffVec ) );
 }
 
 void OrbitCamera::setOrbitPivotWS( const rowVec3_t& orbitPivotWS ) {
-    mTargetOrbitPivotWS = orbitPivotWS;
+    mTargetOrbitPivotWS = orbitPivotWS;// *-1.0f;
+}
+
+void OrbitCamera::addPanDelta( const rowVec3_t& delta ) { 
+    mPanVector = mPanVector + delta; 
 }
 
 //void OrbitCamera::setPosition( const rowVec3_t& pos ) {
 //    mPosWS = pos;
 //
-//    rowVec3_t *const xAxis = reinterpret_cast< rowVec3_t *const >( &mViewMat[0] );
-//    rowVec3_t *const yAxis = reinterpret_cast< rowVec3_t *const >( &mViewMat[1] );
-//    rowVec3_t *const zAxis = reinterpret_cast< rowVec3_t *const >( &mViewMat[2] );
+//    rowVec3_t *const xAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[0] );
+//    rowVec3_t *const yAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[1] );
+//    rowVec3_t *const zAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[2] );
 //
 //    rowVec3_t currXAxis = *xAxis;
 //    rowVec3_t currYAxis = *yAxis;
 //    rowVec3_t currZAxis = *zAxis;
 //
-//    mViewMat[0][3] = -dot( currXAxis, mPosWS ); 
-//    mViewMat[1][3] = -dot( currYAxis, mPosWS );
-//    mViewMat[2][3] = -dot( currZAxis, mPosWS );
+//    mViewOrbitRotMat[0][3] = -dot( currXAxis, mPosWS ); 
+//    mViewOrbitRotMat[1][3] = -dot( currYAxis, mPosWS );
+//    mViewOrbitRotMat[2][3] = -dot( currZAxis, mPosWS );
 //}
 
 void OrbitCamera::resetTrafos() {
-    
+
     loadIdentityMatrix( mViewMat );
+    loadIdentityMatrix( mViewOrbitRotMat );
+    loadIdentityMatrix( mViewPivotOffsetMat );
 
     //mPosWS = { 0.0f, 0.0f, 0.0f };
     mTargetOrbitPivotWS = { 0.0f, 0.0f, 0.0f };
     mOrbitDist = 10.0f;
+
+    mPanVector = { 0.0f, 0.0f, 0.0f };
 
     mCurrMouseX = 0;
     mCurrMouseY = 0;
