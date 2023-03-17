@@ -25,8 +25,7 @@ struct OrbitCamera {
     OrbitCamera();
     
     Status_t update( const float timeDelta,
-                     const float mouseX, const float mouseY, 
-                     const int32_t screenW, const int32_t screenH, 
+                     const float relativeMouseX, const float relativeMouseY, 
                      const bool LMBpressed, const bool RMBpressed, 
                      const rowVec3_t& translationDelta
                      );
@@ -61,10 +60,10 @@ private:
 
     ControlConfig mControlConfig;
     
-    float mCurrMouseX;
-    float mCurrMouseY;
-    float mPrevMouseX;
-    float mPrevMouseY;
+    float mRelativeCurrMouseX;
+    float mRelativeCurrMouseY;
+    float mPrevRelativeMouseX;
+    float mPrevRelativeMouseY;
     float mMouseSensitivity;
     
     bool  mLMBdown;

@@ -77,26 +77,24 @@ OrbitCamera::OrbitCamera()
 
     setMouseSensitivity( mouseSensitivityInit );
 
-    mCurrMouseX = 0.0f;
-    mCurrMouseY = 0.0f;
-    mPrevMouseX = mCurrMouseX;
-    mPrevMouseY = mCurrMouseY;
+    mRelativeCurrMouseX = 0.0f;
+    mRelativeCurrMouseY = 0.0f;
+    mPrevRelativeMouseX = mRelativeCurrMouseX;
+    mPrevRelativeMouseY = mRelativeCurrMouseY;
 }
 
 OrbitCamera::Status_t OrbitCamera::update( 
     const float timeDelta,
-    const float mouseX, const float mouseY, 
-    const int32_t screenW, const int32_t screenH, 
+    const float relativeMouseX, const float relativeMouseY, 
     const bool LMBpressed, const bool RMBpressed, 
-    const rowVec3_t& translationDelta
-    ) {
+    const rowVec3_t& translationDelta ) {
 
     if (!mIsActive) { return Status_t::OK; }
 
-    mCurrMouseX = mouseX;
-    mCurrMouseY = mouseY;
-    const float mouse_dx = (mCurrMouseX - mPrevMouseX) * mMouseSensitivity;
-    const float mouse_dy = (mCurrMouseY - mPrevMouseY) * mMouseSensitivity;
+    mRelativeCurrMouseX = relativeMouseX;
+    mRelativeCurrMouseY = relativeMouseY;
+    const float relative_mouse_dx = (mRelativeCurrMouseX - mPrevRelativeMouseX) * mMouseSensitivity;
+    const float relative_mouse_dy = (mRelativeCurrMouseY - mPrevRelativeMouseY) * mMouseSensitivity;
 
     if (!mLMBdown && LMBpressed) {
         printf( "LMB pressed\n" );
@@ -133,33 +131,8 @@ OrbitCamera::Status_t OrbitCamera::update(
     auto strafeAmount_LR = translationDelta[0];
     auto strafeAmount_UD = translationDelta[1];
     if ( mLMBdown ) {
-
-        //{
-        //    const float angleRad = static_cast<float>(std::numbers::pi) * mouse_dx / screenW;
-        //    const float cosAngle = cosf( angleRad );
-        //    const float sinAngle = sinf( angleRad );
-        //    *xAxis = (currXAxis *  cosAngle) + (currZAxis * sinAngle);
-        //    *zAxis = (currXAxis * -sinAngle) + (currZAxis * cosAngle);
-        //    currXAxis = *xAxis;
-        //    currZAxis = *zAxis;
-        //}
-
-        //{
-        //    const float angleRad = static_cast<float>(std::numbers::pi) * mouse_dy / screenH;
-        //    const float cosAngle = cosf( angleRad );
-        //    const float sinAngle = sinf( angleRad );
-        //    *yAxis = (currYAxis *  cosAngle) + (currZAxis * sinAngle);
-        //    *zAxis = (currYAxis * -sinAngle) + (currZAxis * cosAngle);
-        //    currYAxis = *yAxis;
-        //    currZAxis = *zAxis;
-        //}
-
-        //camPosWS = camPosWS + currXAxis * ( mouse_dx + translationDelta[0] );
-        //camPosWS = camPosWS + currYAxis * ( mouse_dy + translationDelta[1] );
-
-        strafeAmount_LR += mouse_dx;
-        strafeAmount_UD -= mouse_dy;
-
+        strafeAmount_LR += relative_mouse_dx * 500.0f;
+        strafeAmount_UD -= relative_mouse_dy * 500.0f;
     } 
 
     camPosWS = camPosWS + *xAxis * strafeAmount_LR;
@@ -167,56 +140,39 @@ OrbitCamera::Status_t OrbitCamera::update(
 
     if ( mRMBdown ) {
 
-        const float angleRad = static_cast<float>( std::numbers::pi ) * -mouse_dx / screenW;
+        const float angleRad = static_cast<float>( std::numbers::pi ) * -relative_mouse_dx;
         const float cosAngle = cosf( angleRad );
         const float sinAngle = sinf( angleRad );
         *xAxis = ( *xAxis *  cosAngle ) + ( *yAxis * sinAngle );
         *yAxis = ( *xAxis * -sinAngle ) + ( *yAxis * cosAngle );
     }
 
-
     // now map camera back to orbit
     *zAxis = linAlg::normalizeRet( camPosWS - mOrbitPivotWS );
-    //if (linAlg::len( camPosWS - startCamPosWS ) > 0.01f) {
     linAlg::cross( *xAxis, *yAxis, *zAxis );
     linAlg::normalize( *xAxis );
     linAlg::cross( *yAxis, *zAxis, *xAxis );
     linAlg::normalize( *yAxis );
-    //}
-
-    //mPosWS = mPosWS + ( currXAxis * translationDelta[0] ) + ( currYAxis * translationDelta[1] ) + ( currZAxis * translationDelta[2] );
 
     camPosWS = mOrbitPivotWS + *zAxis * mOrbitDist;
 
     mViewOrbitRotMat[0][3] = -dot( *xAxis, camPosWS ); 
     mViewOrbitRotMat[1][3] = -dot( *yAxis, camPosWS );
     mViewOrbitRotMat[2][3] = -dot( *zAxis, camPosWS );
-    //mViewOrbitRotMat[0][3] = 0.0f; 
-    //mViewOrbitRotMat[1][3] = 0.0f;
-    //mViewOrbitRotMat[2][3] = 0.0f;
 
     linAlg::loadTranslationMatrix( mViewPivotOffsetMat, mTargetOrbitPivotWS * -1.0f );
     mViewMat = mViewOrbitRotMat * mViewPivotOffsetMat;
     
     linAlg::loadTranslationMatrix( mViewPivotOffsetMat, mTargetOrbitPivotWS ); // jumps, but has the offset
-    //linAlg::loadTranslationMatrix( mViewPivotOffsetMat, { dot( *xAxis, mTargetOrbitPivotWS ), dot( *yAxis, mTargetOrbitPivotWS ), dot( *zAxis, mTargetOrbitPivotWS ) } ); // removes pivot offset
     mViewMat = mViewPivotOffsetMat * mViewMat;
-
-    //linAlg::loadTranslationMatrix( mViewPivotOffsetMat, { -dot( *xAxis, camPosWS ), -dot( *yAxis, camPosWS ), -dot( *zAxis, camPosWS ) } ); // removes pivot offset
-    //mViewMat = mViewPivotOffsetMat * mViewMat;
-
-    //mViewMat[0][3] = -dot( *xAxis, camPosWS ); 
-    //mViewMat[1][3] = -dot( *yAxis, camPosWS );
-    //mViewMat[2][3] = -dot( *zAxis, camPosWS );
 
     linAlg::mat3x4_t pivotOffsetCompensationMatrix;
     linAlg::loadTranslationMatrix( pivotOffsetCompensationMatrix, mPanVector );
 
     mViewMat = pivotOffsetCompensationMatrix * mViewMat;
 
-
-    mPrevMouseX = mCurrMouseX;
-    mPrevMouseY = mCurrMouseY;
+    mPrevRelativeMouseX = mRelativeCurrMouseX;
+    mPrevRelativeMouseY = mRelativeCurrMouseY;
 
     return Status_t::OK;
 }
@@ -282,9 +238,9 @@ void OrbitCamera::resetTrafos() {
 
     mPanVector = { 0.0f, 0.0f, 0.0f };
 
-    mCurrMouseX = 0;
-    mCurrMouseY = 0;
-    mPrevMouseX = 0;
-    mPrevMouseY = 0;
+    mRelativeCurrMouseX = 0;
+    mRelativeCurrMouseY = 0;
+    mPrevRelativeMouseX = 0;
+    mPrevRelativeMouseY = 0;
     
 }
