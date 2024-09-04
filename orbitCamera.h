@@ -51,7 +51,6 @@ private:
     rowMajorMat3x4_t mViewOrbitRotMat;
     rowMajorMat3x4_t mViewPivotOffsetMat;
 
-    //rowVec3_t mPosWS;
     float       mOrbitDist;
     rowVec3_t   mOrbitPivotWS;
     rowVec3_t   mTargetOrbitPivotWS;
@@ -71,5 +70,4 @@ private:
 
     bool  mIsActive;
 };
-
 #endif // _OrbitCamera_H_9ec4f00a_2117_4578_937e_9f4fb94dc759

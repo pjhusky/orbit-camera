@@ -19,14 +19,7 @@ namespace {
         mat[1] = OrbitCamera::rowVec4_t{ 0.0f, 1.0f, 0.0f, 0.0f };
         mat[2] = OrbitCamera::rowVec4_t{ 0.0f, 0.0f, 1.0f, 0.0f };
     }
-    
-     //template<uint32_t num_T>
-     //static OrbitCamera::vec_t<num_T>& operator*( OrbitCamera::vec_t<num_T>& vec, const float scalar ) {
-     //    for ( auto& entry : vec ) {
-     //        entry *= scalar;
-     //    }
-     //    return vec;
-     //}
+
     template<std::size_t num_T>
     static inline OrbitCamera::vec_t<num_T> operator*( const OrbitCamera::vec_t<num_T>& vec, const float scalar ) {
         OrbitCamera::vec_t<num_T> result = vec;
@@ -71,7 +64,6 @@ OrbitCamera::OrbitCamera()
     , mIsActive( true ) {
 
     resetTrafos();
-    //mPanVector = { 0.0f, 0.0f, 0.0f };
 
     setControlConfig( ControlConfig{ .invertY=1u } );
 
@@ -115,11 +107,9 @@ OrbitCamera::Status_t OrbitCamera::update(
     }
 
     float damping = 0.7f;
-    //mOrbitPivotWS = mOrbitPivotWS * damping + mTargetOrbitPivotWS * ( 1.0f - damping );
     mOrbitPivotWS = { 0.0f, 0.0f, 0.0f };
 
     mOrbitDist += translationDelta[2];
-
 
     rowVec3_t *const xAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[0] );
     rowVec3_t *const yAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[1] );
@@ -188,14 +178,8 @@ void OrbitCamera::setViewMatrix( const rowMajorMat3x4_t& viewMatrix ) {
     linAlg::inverse( invViewMat4, viewMat4 );
     rowVec3_t camPosWS = {invViewMat4[0][3], invViewMat4[1][3], invViewMat4[2][3] };
 
-    // remove translational part
-    //mViewOrbitRotMat[0][3] = 0.0f;
-    //mViewOrbitRotMat[1][3] = 0.0f;
-    //mViewOrbitRotMat[2][3] = 0.0f;
     mViewOrbitRotMat = mViewMat;
 
-
-    //linAlg::loadTranslationMatrix( mViewPivotOffsetMat, camPosWS * -1.0f );
     mTargetOrbitPivotWS = { 0.0f, 0.0f, 0.0f };
 
     auto diffVec = mOrbitPivotWS - camPosWS;
@@ -210,29 +194,12 @@ void OrbitCamera::addPanDelta( const rowVec3_t& delta ) {
     mPanVector = mPanVector + delta; 
 }
 
-//void OrbitCamera::setPosition( const rowVec3_t& pos ) {
-//    mPosWS = pos;
-//
-//    rowVec3_t *const xAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[0] );
-//    rowVec3_t *const yAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[1] );
-//    rowVec3_t *const zAxis = reinterpret_cast< rowVec3_t *const >( &mViewOrbitRotMat[2] );
-//
-//    rowVec3_t currXAxis = *xAxis;
-//    rowVec3_t currYAxis = *yAxis;
-//    rowVec3_t currZAxis = *zAxis;
-//
-//    mViewOrbitRotMat[0][3] = -dot( currXAxis, mPosWS ); 
-//    mViewOrbitRotMat[1][3] = -dot( currYAxis, mPosWS );
-//    mViewOrbitRotMat[2][3] = -dot( currZAxis, mPosWS );
-//}
-
 void OrbitCamera::resetTrafos() {
 
     loadIdentityMatrix( mViewMat );
     loadIdentityMatrix( mViewOrbitRotMat );
     loadIdentityMatrix( mViewPivotOffsetMat );
 
-    //mPosWS = { 0.0f, 0.0f, 0.0f };
     mTargetOrbitPivotWS = { 0.0f, 0.0f, 0.0f };
     mOrbitDist = 10.0f;
 
@@ -241,6 +208,5 @@ void OrbitCamera::resetTrafos() {
     mRelativeCurrMouseX = 0;
     mRelativeCurrMouseY = 0;
     mPrevRelativeMouseX = 0;
-    mPrevRelativeMouseY = 0;
-    
+    mPrevRelativeMouseY = 0;    
 }
